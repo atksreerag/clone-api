@@ -1,29 +1,33 @@
+
 import { Sequelize } from 'sequelize';
 import winston from 'winston';
 import config from '../config/config';
 
 const dbUrl = config.DB_URL;
 
-const sequelize = new Sequelize(dbUrl, {
-  dialect: 'postgres',
-  logging: false, // Set to true to log SQL queries
-});
+// Create Sequelize instance
+const sequelize = new Sequelize(dbUrl);
 
-sequelize
-  .authenticate()
-  .then(() => {
-    console.log(`Connected to PostgreSQL database at ${dbUrl}`);
-    winston.info(`Connected to PostgreSQL database at ${dbUrl}`);
-  })
-  .catch((error) => {
-    console.error(`Error connecting to PostgreSQL database: ${error}`);
-    winston.error(`Error connecting to PostgreSQL database: ${error}`);
+export default async () => {
+  try {
+    await sequelize.authenticate(); // Test the connection
+
+    console.log(`Connected to PostgreSQL at ${dbUrl}`);
+    winston.info(`Connected to PostgreSQL at ${dbUrl}`);
+  } catch (error) {
+    console.log(`PostgreSQL connection error: ${error.message}`);
+    winston.error(`PostgreSQL connection error: ${error.message}`);
+  }
+
+  process.on('SIGINT', async () => {
+    try {
+      await sequelize.close();
+
+      winston.error('PostgreSQL is disconnected due to application termination');
+      process.exit(0);
+    } catch (error) {
+      winston.error(`Error while closing PostgreSQL connection: ${error.message}`);
+      process.exit(1);
+    }
   });
-
-process.on('SIGINT', async () => {
-  await sequelize.close();
-  winston.info('PostgreSQL connection closed due to application termination');
-  process.exit(0);
-});
-
-export default sequelize;
+};
